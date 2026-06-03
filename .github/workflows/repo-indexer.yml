@@ -26,5 +26,5 @@ jobs:
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
+          PAT_TOKEN: ${{ secrets.PAT_TOKEN }}
+          CODER_REPOSITORY: ${{ secrets.CODER_REPOSITORY }}
