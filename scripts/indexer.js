@@ -18,7 +18,7 @@ async function getRepoFiles() {
 
   const res = await axios.get(url, {
     headers: {
-      Authorization: `Bearer ${PAT_TOKEN}`,
+      Authorization: `Bearer ${GITHUB_TOKEN}`,
       Accept: "application/vnd.github+json",
     },
   });
