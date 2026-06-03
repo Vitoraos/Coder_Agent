@@ -7,7 +7,15 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const GITHUB_TOKEN = process.env.PAT_TOKEN;
 const REPO = process.env.CODER_REPOSITORY;
 
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(
+  SUPABASE_URL,
+  SUPABASE_KEY,
+  {
+    realtime: {
+      enabled: false,
+    },
+  }
+);
 
 /* -----------------------------
    1. GET FILE TREE (GitHub API)
