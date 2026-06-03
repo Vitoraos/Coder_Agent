@@ -1,5 +1,5 @@
 const axios = require("axios");
-const { Project } = require("ts-morph");
+const { Project, SyntaxKind } = require("ts-morph");
 const { createClient } = require("@supabase/supabase-js");
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
@@ -7,22 +7,44 @@ const SUPABASE_KEY = process.env.SUPABASE_KEY;
 const GITHUB_TOKEN = process.env.PAT_TOKEN;
 const REPO = process.env.CODER_REPOSITORY;
 
-const supabase = createClient(
-  SUPABASE_URL,
-  SUPABASE_KEY,
-  {
-    realtime: {
-      enabled: false,
-    },
-  }
-);
+/* -----------------------------
+   SUPABASE CLIENT (safe)
+------------------------------ */
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  realtime: { enabled: false },
+});
 
 /* -----------------------------
-   1. GET FILE TREE (GitHub API)
+   SAFE SERIALIZER (FIX)
 ------------------------------ */
+function sanitize(obj) {
+  return JSON.parse(JSON.stringify(obj));
+}
 
+/* -----------------------------
+   1. GET DEFAULT BRANCH
+------------------------------ */
+async function getDefaultBranch() {
+  const res = await axios.get(
+    `https://api.github.com/repos/${REPO}`,
+    {
+      headers: {
+        Authorization: `Bearer ${GITHUB_TOKEN}`,
+        Accept: "application/vnd.github+json",
+      },
+    }
+  );
+
+  return res.data.default_branch;
+}
+
+/* -----------------------------
+   2. GET FILE TREE
+------------------------------ */
 async function getRepoFiles() {
-  const url = `https://api.github.com/repos/${REPO}/git/trees/main?recursive=1`;
+  const branch = await getDefaultBranch();
+
+  const url = `https://api.github.com/repos/${REPO}/git/trees/${branch}?recursive=1`;
 
   const res = await axios.get(url, {
     headers: {
@@ -35,19 +57,20 @@ async function getRepoFiles() {
 }
 
 /* -----------------------------
-   2. FETCH RAW FILE CONTENT
+   3. FETCH FILE CONTENT
 ------------------------------ */
-
 async function getFile(path) {
-  const url = `https://raw.githubusercontent.com/${REPO}/main/${path}`;
+  const branch = await getDefaultBranch();
+
+  const url = `https://raw.githubusercontent.com/${REPO}/${branch}/${path}`;
   const res = await axios.get(url);
+
   return res.data;
 }
 
 /* -----------------------------
-   3. AST ANALYSIS (single pass)
+   4. AST ANALYSIS
 ------------------------------ */
-
 function analyze(filePath, code) {
   const project = new Project({
     useInMemoryFileSystem: true,
@@ -55,29 +78,25 @@ function analyze(filePath, code) {
 
   const source = project.createSourceFile(filePath, code);
 
-  // imports
   const imports = source.getImportDeclarations().map(i =>
     i.getModuleSpecifierValue()
   );
 
-  // functions + calls
   const functions = source.getFunctions().map(fn => {
     const name = fn.getName() || "anonymous";
 
-    const calls = fn.getDescendantsOfKind(230) // CallExpression
+    const calls = fn
+      .getDescendantsOfKind(SyntaxKind.CallExpression)
       .map(c => c.getExpression().getText());
 
     return { name, calls };
   });
 
-  // exports
-  const exports = source.getExportedDeclarations();
-  const exportNames = Array.from(exports.keys());
+  const exports = Array.from(source.getExportedDeclarations().keys());
 
-  // naive route detection (Express-style)
   const routes = [];
-
   const text = source.getFullText();
+
   const routeRegex = /(get|post|put|delete)\(["'`](.*?)["'`]/g;
 
   let match;
@@ -91,15 +110,14 @@ function analyze(filePath, code) {
   return {
     imports,
     functions,
-    exports: exportNames,
+    exports,
     routes,
   };
 }
 
 /* -----------------------------
-   4. MAIN INDEXER
+   5. MAIN INDEXER
 ------------------------------ */
-
 async function run() {
   console.log("Starting baseline index...");
 
@@ -117,7 +135,13 @@ async function run() {
 
     console.log("Indexing:", path);
 
-    const code = await getFile(path);
+    let code;
+    try {
+      code = await getFile(path);
+    } catch (err) {
+      console.log("Failed fetching:", path);
+      continue;
+    }
 
     let data;
     try {
@@ -127,10 +151,13 @@ async function run() {
       continue;
     }
 
+    /* -----------------------------
+       🔥 FIXED UPLOAD (IMPORTANT)
+    ------------------------------ */
     await supabase.from("repo_index").upsert({
       path,
       sha,
-      data,
+      data: sanitize(data),
       updated_at: new Date().toISOString(),
     });
   }
