@@ -4,8 +4,8 @@ const { createClient } = require("@supabase/supabase-js");
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_KEY = process.env.SUPABASE_KEY;
-const GITHUB_TOKEN = process.env.GITHUB_TOKEN;
-const REPO = process.env.GITHUB_REPOSITORY;
+const GITHUB_TOKEN = process.env.PAT_TOKEN;
+const REPO = process.env.CODER_REPOSITORY;
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
@@ -18,7 +18,7 @@ async function getRepoFiles() {
 
   const res = await axios.get(url, {
     headers: {
-      Authorization: `Bearer ${GITHUB_TOKEN}`,
+      Authorization: `Bearer ${PAT_TOKEN}`,
       Accept: "application/vnd.github+json",
     },
   });
