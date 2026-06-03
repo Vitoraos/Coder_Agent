@@ -1,0 +1,27 @@
+{
+  "imports": {
+    "meaning": "External dependencies used by the file",
+    "use_when": "Need to understand coupling or dependency graph",
+    "query_hint": "Which libraries does this file depend on?"
+  },
+  "functions": {
+    "meaning": "Executable units of logic in the file",
+    "use_when": "Tracing behavior, debugging, refactoring",
+    "query_hint": "Where is logic for X implemented?"
+  },
+  "functions.calls": {
+    "meaning": "Internal and external function invocations",
+    "use_when": "Building call graph or execution flow",
+    "query_hint": "What does this function trigger?"
+  },
+  "exports": {
+    "meaning": "Public API surface of the module",
+    "use_when": "Finding entry points or reusable logic",
+    "query_hint": "What can other files import from this?"
+  },
+  "routes": {
+    "meaning": "HTTP endpoints (if backend)",
+    "use_when": "API mapping and request tracing",
+    "query_hint": "Which endpoint handles this action?"
+  }
+}
